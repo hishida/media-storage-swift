@@ -62,7 +62,6 @@ public struct MediaStorageError {
 
 public class MediaStorage {
     var authClient: AuthClient
-    var accessToken: String?
     
     let mstorageEndpoint = "https://mss.ricohapi.com/v1/media"
     let searchPath = "/search"
@@ -86,12 +85,12 @@ public class MediaStorage {
     
     public func connect(completionHandler completionHandler: (AuthResult, AuthError) -> Void) {
         authClient.session(){result, error in
-            self.accessToken = result.accessToken
             completionHandler(result, error)
         }
     }
     
     public func list(params: Dictionary<String, AnyObject> = [:], completionHandler: (MediaList, MediaStorageError) -> Void) {
+        let accessToken = getAccessToken(authClient)
         if accessToken == nil {
             completionHandler(MediaList(), MediaStorageError(statusCode: nil, message: "wrong usage: use the connect method to get an access token."))
             return
@@ -188,6 +187,7 @@ public class MediaStorage {
     }
     
     public func upload(data data: NSData!, completionHandler: (MediaInfo, MediaStorageError) -> Void) {
+        let accessToken = getAccessToken(authClient)
         if accessToken == nil {
             completionHandler(MediaInfo(), MediaStorageError(statusCode: nil, message: "wrong usage: use the connect method to get an access token."))
             return
@@ -241,6 +241,7 @@ public class MediaStorage {
     }
     
     public func download(mediaId mediaId: String, completionHandler: (MediaContent, MediaStorageError) -> Void) {
+        let accessToken = getAccessToken(authClient)
         if accessToken == nil {
             completionHandler(MediaContent(),
                               MediaStorageError(statusCode: nil, message: "wrong usage: use the connect method to get an access token."))
@@ -275,6 +276,7 @@ public class MediaStorage {
     }
     
     public func addMeta(mediaId mediaId: String, userMeta: Dictionary<String, String>, completionHandler: MediaStorageError -> Void) {
+        let accessToken = getAccessToken(authClient)
         if accessToken == nil {
             completionHandler(
                 MediaStorageError(statusCode: nil, message: "wrong usage: use the connect method to get an access token.")
@@ -327,6 +329,7 @@ public class MediaStorage {
     }
     
     public func info(mediaId mediaId: String!, completionHandler: (MediaInfo, MediaStorageError) -> Void) {
+        let accessToken = getAccessToken(authClient)
         if accessToken == nil {
             completionHandler(MediaInfo(), MediaStorageError(statusCode: nil, message: "wrong usage: use the connect method to get an access token."))
             return
@@ -379,6 +382,7 @@ public class MediaStorage {
     }
     
     public func delete(mediaId mediaId: String!, completionHandler: MediaStorageError -> Void) {
+        let accessToken = getAccessToken(authClient)
         if accessToken == nil {
             completionHandler(MediaStorageError(statusCode: nil, message: "wrong usage: use the connect method to get an access token."))
             return
@@ -412,6 +416,7 @@ public class MediaStorage {
     }
 
     public func meta(mediaId mediaId: String!, completionHandler: (MediaMeta, MediaStorageError) -> Void) {
+        let accessToken = getAccessToken(authClient)
         if accessToken == nil {
             completionHandler(MediaMeta(), MediaStorageError(statusCode: nil, message: "wrong usage: use the connect method to get an access token."))
             return
@@ -463,6 +468,7 @@ public class MediaStorage {
     }
 
     public func meta(mediaId mediaId: String!, fieldName: String!, completionHandler: (Dictionary<String, String>, MediaStorageError) -> Void) {
+        let accessToken = getAccessToken(authClient)
         if accessToken == nil {
             completionHandler(Dictionary<String, String>(), MediaStorageError(statusCode: nil, message: "wrong usage: use the connect method to get an access token."))
             return
@@ -536,6 +542,7 @@ public class MediaStorage {
     }
 
     public func removeMeta(mediaId mediaId: String!, fieldName: String!, completionHandler: MediaStorageError -> Void) {
+        let accessToken = getAccessToken(authClient)
         if accessToken == nil {
             completionHandler(MediaStorageError(statusCode: nil, message: "wrong usage: use the connect method to get an access token."))
             return
@@ -585,15 +592,28 @@ public class MediaStorage {
             )
         }
     }
-
-    private func replaceUserMeta (userMeta: String!) -> String{
+    
+    private func getAccessToken(auth: AuthClient) -> String? {
+        let semaphore: dispatch_semaphore_t = dispatch_semaphore_create(0)
+        
+        var accessToken = ""
+        auth.getAccessToken {(result, error) in
+            accessToken = result.accessToken!
+            dispatch_semaphore_signal(semaphore)
+        }
+        
+        dispatch_semaphore_wait(semaphore, DISPATCH_TIME_FOREVER)
+        return accessToken
+    }
+    
+    private func replaceUserMeta (userMeta: String!) -> String {
         let replacedString = userMeta.stringByReplacingOccurrencesOfString(replaceUserMetaRegex, withString: firstGroupRegex, options: NSStringCompareOptions.RegularExpressionSearch, range: nil)
 
         return replacedString == userMeta ? "" : replacedString
 
     }
     
-    private func isValidValue(value: String) -> Bool{
+    private func isValidValue(value: String) -> Bool {
         return (value.characters.count >= minUserMetaLength && value.characters.count <= maxUserMetaLength)
     }
     
