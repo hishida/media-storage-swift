@@ -598,8 +598,8 @@ public class MediaStorage {
         
         var accessToken = ""
         auth.getAccessToken {(result, error) in
-            dispatch_semaphore_signal(semaphore)
             accessToken = result.accessToken!
+            dispatch_semaphore_signal(semaphore)
         }
         
         dispatch_semaphore_wait(semaphore, DISPATCH_TIME_FOREVER)
